@@ -38,7 +38,7 @@ Edit `.env`:
 ```dotenv
 APP_ENV=dev
 APP_SECRET=your_secret_here
-DATABASE_URL="mysql://root:@127.0.0.1:3306/symfony_dashboard_2?charset=utf8mb4"
+DATABASE_URL="mysql://root:@127.0.0.1:3306/symfony_dashboard?charset=utf8mb4"
 MESSENGER_TRANSPORT_DSN=doctrine://default?auto_setup=true
 CORS_ALLOW_ORIGIN='^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$'
 ```
