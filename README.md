@@ -148,30 +148,6 @@ GET /api/site-records
 ---
 
 ## Architecture
-
-```
-src/Dashboard/
-├── Domain/
-│   ├── Entity/SiteRecord.php
-│   ├── ValueObject/SiteUrl.php
-│   ├── ValueObject/SiteStatus.php
-│   ├── Event/SiteRecordCreated.php
-│   ├── Event/SiteRecordUpdated.php
-│   ├── Specification/
-│   └── Service/DashboardStatisticsService.php
-├── Application/
-│   ├── Command/
-│   ├── Handler/
-│   ├── Query/GetDashboardQuery.php
-│   ├── Query/ReadModel/SiteRecordReadModel.php
-│   └── QueryHandler/GetDashboardQueryHandler.php
-├── Infrastructure/
-│   ├── Repository/DoctrineSiteRecordRepository.php
-│   ├── Repository/DashboardReadRepository.php
-│   ├── Cache/DashboardCacheInvalidator.php
-│   └── EventListener/
-└── Presentation/
-    └── Controller/DashboardController.php
 ```
 
 | Pattern          | Implementation                                 |
@@ -205,7 +181,6 @@ php bin/phpunit
 ---
 
 ## Clear Cache
-php bin/console cache:clear
 ```bash
 php bin/console cache:clear
 ```
