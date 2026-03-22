@@ -1,0 +1,29 @@
+dashboard_index:
+    path:       /
+    controller: App\Dashboard\Presentation\Controller\DashboardController::index
+    methods:    [GET]
+
+dashboard_index_alias:
+    path:       /dashboard
+    controller: App\Dashboard\Presentation\Controller\DashboardController::index
+    methods:    [GET]
+
+log_viewer:
+    path:       /logs
+    controller: App\Dashboard\Presentation\Controller\LogViewerController::index
+    methods:    [GET]
+
+dashboard_create:
+    path:       /site-records
+    controller: App\Dashboard\Presentation\Controller\DashboardController::create
+    methods:    [POST]
+
+dashboard_update:
+    path:       /site-records/{id}
+    controller: App\Dashboard\Presentation\Controller\DashboardController::update
+    methods:    [POST]
+
+dashboard_delete:
+    path:       /site-records/{id}/delete
+    controller: App\Dashboard\Presentation\Controller\DashboardController::delete
+    methods:    [POST]

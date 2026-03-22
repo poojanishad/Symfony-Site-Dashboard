@@ -1,0 +1,49 @@
+framework:
+    messenger:
+        default_bus: command.bus
+        failure_transport: failed
+
+        transports:
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    auto_setup: true
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 30000
+            failed:
+                dsn: 'doctrine://default?queue_name=failed'
+                failure_transport: ~
+
+        buses:
+            command.bus:
+                middleware:
+                    - App\Shared\Infrastructure\Messenger\LoggingMiddleware
+                    - App\Shared\Infrastructure\Messenger\PerformanceMiddleware
+            query.bus:
+                middleware:
+                    - App\Shared\Infrastructure\Messenger\LoggingMiddleware
+                    - App\Shared\Infrastructure\Messenger\PerformanceMiddleware
+            event.bus:
+                default_middleware:
+                    enabled: true
+                    allow_no_handlers: true
+                middleware:
+                    - App\Shared\Infrastructure\Messenger\LoggingMiddleware
+
+        routing:
+            # Commands have no routing entry = handled synchronously inline
+            App\Dashboard\Domain\Event\SiteRecordCreated: async
+            App\Dashboard\Domain\Event\SiteRecordUpdated: async
+            App\Dashboard\Domain\Event\SiteRecordDeleted: async
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                async:
+                    dsn: 'in-memory://'
+                failed:
+                    dsn: 'in-memory://'

@@ -1,0 +1,37 @@
+doctrine:
+    dbal:
+        url: '%env(resolve:DATABASE_URL)%'
+        # 7.4 + DBAL 3.8: profiling is now a dedicated option
+        profiling_collect_backtrace: '%kernel.debug%'
+
+    orm:
+        auto_generate_proxy_classes: true
+        # ORM 3.x: enable_lazy_ghost_objects replaces old proxy system
+        enable_lazy_ghost_objects: true
+        report_fields_where_declared: true
+        validate_xml_mapping: true
+        naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
+        auto_mapping: true
+        mappings:
+            Dashboard:
+                type: attribute
+                dir: '%kernel.project_dir%/src/Dashboard/Domain/Entity'
+                prefix: 'App\Dashboard\Domain\Entity'
+                alias: Dashboard
+
+when@test:
+    doctrine:
+        dbal:
+            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+
+when@prod:
+    doctrine:
+        orm:
+            auto_generate_proxy_classes: false
+            proxy_dir: '%kernel.build_dir%/doctrine/orm/Proxies'
+            query_cache_driver:
+                type: pool
+                pool: doctrine.system_cache_pool
+            result_cache_driver:
+                type: pool
+                pool: doctrine.result_cache_pool

@@ -1,0 +1,60 @@
+framework:
+    cache:
+        # ── Default adapter ───────────────────────────────────────────────────
+        # In dev: filesystem cache (no Redis required to run locally)
+        # In prod: override with redis adapter below (when@prod section)
+        app: cache.adapter.filesystem
+
+        # ── Named cache pools ────────────────────────────────────────────────
+        pools:
+            # Dashboard query cache — used by GetDashboardQueryHandler
+            # TTL: 60s  |  Invalidated by: DashboardCacheInvalidator
+            dashboard.cache:
+                adapter: cache.app
+                default_lifetime: 60
+                tags: true   # enables tag-based invalidation
+
+            # Doctrine ORM result cache pool (referenced in doctrine.yaml)
+            doctrine.result_cache_pool:
+                adapter: cache.app
+                default_lifetime: 3600
+
+            # Doctrine ORM query metadata cache pool
+            doctrine.system_cache_pool:
+                adapter: cache.adapter.array   # metadata is per-process, array is fine
+
+
+# ── Production overrides ──────────────────────────────────────────────────────
+# Switch dashboard.cache and cache.app to Redis in production for:
+#   - Shared cache across multiple app instances / containers
+#   - Persistence across deploys (warm cache on restart)
+#   - Atomic tag invalidation
+when@prod:
+    framework:
+        cache:
+            # Set REDIS_URL=redis://localhost:6379 in .env.prod.local
+            default_redis_provider: '%env(REDIS_URL)%'
+            app: cache.adapter.redis
+
+            pools:
+                dashboard.cache:
+                    adapter: cache.adapter.redis
+                    provider: cache.default_redis_provider
+                    default_lifetime: 60
+                    tags: true
+
+                doctrine.result_cache_pool:
+                    adapter: cache.adapter.redis
+                    provider: cache.default_redis_provider
+                    default_lifetime: 3600
+
+
+# ── Test overrides ────────────────────────────────────────────────────────────
+when@test:
+    framework:
+        cache:
+            app: cache.adapter.array   # in-memory, cleared between tests
+            pools:
+                dashboard.cache:
+                    adapter: cache.adapter.array
+                    default_lifetime: 3600

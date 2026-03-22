@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Viewer — Site Dashboard</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg:#f1f5f9; --surface:#ffffff; --border:#e2e8f0; --text:#1e293b;
+            --muted:#64748b; --accent:#4f46e5; --accent-h:#4338ca;
+        }
+        body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; font-size:14px; line-height:1.6; }
+        .wrap { max-width:1400px; margin:0 auto; padding:0 24px; }
+
+        header { background:#fff; border-bottom:1px solid var(--border); padding:14px 0; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+        .header-inner { display:flex; align-items:center; gap:16px; }
+        .logo { font-size:17px; font-weight:700; color:var(--text); text-decoration:none; }
+        .logo span { color:var(--accent); }
+        .breadcrumb { font-size:13px; color:var(--muted); }
+        .breadcrumb a { color:var(--accent); text-decoration:none; }
+
+        .summary { display:flex; gap:10px; padding:16px 0 12px; flex-wrap:wrap; }
+        .level-pill { display:inline-flex; align-items:center; gap:6px; padding:5px 14px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid transparent; text-decoration:none; cursor:pointer; transition:all .15s; }
+        .level-pill:hover { opacity:.85; }
+        .pill-all      { background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+        .pill-debug    { background:#f0f9ff; color:#0369a1; border-color:#bae6fd; }
+        .pill-info     { background:#f0fdf4; color:#166534; border-color:#86efac; }
+        .pill-notice   { background:#f0fdf4; color:#166534; border-color:#86efac; }
+        .pill-warning  { background:#fefce8; color:#854d0e; border-color:#fde68a; }
+        .pill-error    { background:#fff1f2; color:#9f1239; border-color:#fda4af; }
+        .pill-critical { background:#fef2f2; color:#991b1b; border-color:#fca5a5; }
+        .pill-active   { box-shadow:0 0 0 2px var(--accent); }
+        .pill-count    { background:rgba(0,0,0,.08); border-radius:10px; padding:1px 6px; font-size:11px; }
+
+        .toolbar { display:flex; gap:10px; align-items:center; padding:0 0 14px; flex-wrap:wrap; }
+        .channel-tabs { display:flex; gap:6px; flex-wrap:wrap; }
+        .tab { padding:6px 16px; border-radius:8px; border:1px solid var(--border); background:#fff; color:var(--muted); font-size:12px; font-weight:500; text-decoration:none; transition:all .15s; }
+        .tab:hover { border-color:var(--accent); color:var(--accent); }
+        .tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+        .search-box { flex:1; min-width:200px; max-width:360px; }
+        .search-box input { width:100%; padding:7px 12px; border:1px solid var(--border); border-radius:8px; font-size:13px; outline:none; background:#fff; color:var(--text); }
+        .search-box input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(79,70,229,.1); }
+        .ml-auto { margin-left:auto; }
+        .log-meta { font-size:11px; color:var(--muted); background:#fff; border:1px solid var(--border); border-radius:6px; padding:5px 10px; }
+
+        .table-wrap { background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); margin-bottom:14px; }
+        table { width:100%; border-collapse:collapse; font-size:13px; }
+        th { text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); border-bottom:1px solid var(--border); background:#f8fafc; font-weight:600; white-space:nowrap; }
+        td { padding:10px 14px; border-bottom:1px solid #f1f5f9; vertical-align:top; }
+        tr:last-child td { border-bottom:none; }
+        tr:hover td { background:#fafafa; }
+        .empty-row td { text-align:center; color:var(--muted); padding:48px; font-size:14px; }
+
+        .lvl { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
+        .lvl-DEBUG    { background:#f0f9ff; color:#0369a1; }
+        .lvl-INFO     { background:#f0fdf4; color:#166534; }
+        .lvl-NOTICE   { background:#f0fdf4; color:#166534; }
+        .lvl-WARNING  { background:#fefce8; color:#854d0e; }
+        .lvl-ERROR    { background:#fff1f2; color:#9f1239; }
+        .lvl-CRITICAL { background:#fef2f2; color:#991b1b; }
+        .lvl-ALERT    { background:#fef2f2; color:#991b1b; }
+        .lvl-EMERGENCY{ background:#1e0000; color:#fca5a5; }
+
+        .dt { font-size:11px; color:var(--muted); white-space:nowrap; font-family:monospace; }
+
+        .msg { font-weight:500; color:var(--text); word-break:break-word; }
+        .msg-sub { font-size:11px; color:var(--muted); margin-top:3px; word-break:break-word; }
+
+        .ctx-toggle { font-size:11px; color:var(--accent); cursor:pointer; background:none; border:none; padding:0; margin-top:4px; display:inline-block; }
+        .ctx-block { display:none; margin-top:6px; background:#f8fafc; border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-size:11px; font-family:monospace; white-space:pre-wrap; word-break:break-all; color:#334155; max-height:200px; overflow-y:auto; }
+        .ctx-block.open { display:block; }
+
+        .pagination { display:flex; align-items:center; gap:6px; padding:0 0 24px; flex-wrap:wrap; }
+        .pag-info { font-size:12px; color:var(--muted); margin-right:8px; }
+        .pag-btn { padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:#fff; color:var(--muted); text-decoration:none; font-size:12px; transition:all .15s; }
+        .pag-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .pag-btn.current { background:var(--accent); border-color:var(--accent); color:#fff; }
+        .pag-btn.disabled { opacity:.35; pointer-events:none; }
+
+        .no-file { background:#fff; border:1px solid var(--border); border-radius:12px; padding:48px; text-align:center; color:var(--muted); margin-bottom:24px; }
+        .no-file strong { display:block; font-size:15px; margin-bottom:8px; color:var(--text); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="wrap header-inner">
+        <a href="{{ path('dashboard_index') }}" class="logo">Site<span>Dashboard</span></a>
+        <span class="breadcrumb"><a href="{{ path('dashboard_index') }}">Dashboard</a> / Log Viewer</span>
+        <div class="ml-auto" style="font-size:12px;color:var(--muted)">Symfony 7.4 LTS</div>
+    </div>
+</header>
+
+<div class="wrap">
+
+    <div class="toolbar" style="padding-top:16px">
+        <div class="channel-tabs">
+            {% for key, filename in channels %}
+                <a href="{{ path('log_viewer', {channel: key, level: level, search: search}) }}"
+                   class="tab{{ channel == key ? ' active' : '' }}">
+                    {{ key|capitalize }}
+                </a>
+            {% endfor %}
+        </div>
+        <div class="search-box ml-auto">
+            <form method="get" action="{{ path('log_viewer') }}">
+                <input type="hidden" name="channel" value="{{ channel }}">
+                <input type="hidden" name="level"   value="{{ level }}">
+                <input type="text"   name="search"  value="{{ search }}"
+                       placeholder="Search messages..." autocomplete="off">
+            </form>
+        </div>
+        <div class="log-meta">
+            {{ log_file|split('/')|last }}
+            &nbsp;·&nbsp;
+            {{ total_count }} entr{{ total_count == 1 ? 'y' : 'ies' }}
+        </div>
+    </div>
+
+    <div class="summary">
+        <a href="{{ path('log_viewer', {channel: channel, search: search}) }}"
+           class="level-pill pill-all{{ level == '' ? ' pill-active' : '' }}">
+            All <span class="pill-count">{{ level_counts|reduce((carry, v) => carry + v, 0) }}</span>
+        </a>
+        {% for lvl, count in level_counts|filter((v, k) => v > 0) %}
+            <a href="{{ path('log_viewer', {channel: channel, level: lvl|lower, search: search}) }}"
+               class="level-pill pill-{{ lvl|lower }}{{ level == lvl|lower ? ' pill-active' : '' }}">
+                {{ lvl }} <span class="pill-count">{{ count }}</span>
+            </a>
+        {% endfor %}
+    </div>
+
+    {% if not file_exists %}
+        <div class="no-file">
+            <strong>Log file not found</strong>
+            The file <code>{{ log_file|split('/')|last }}</code> hasn't been created yet.
+            Interact with the dashboard to generate log entries.
+        </div>
+    {% else %}
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:90px">Level</th>
+                    <th style="width:160px">Date / Time</th>
+                    <th>Message</th>
+                    <th style="width:80px">Context</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% if entries|length == 0 %}
+                <tr class="empty-row">
+                    <td colspan="4">No log entries found{% if search %} matching "{{ search }}"{% endif %}{% if level %} at level {{ level|upper }}{% endif %}.</td>
+                </tr>
+            {% else %}
+                {% for entry in entries %}
+                <tr>
+                    <td>
+                        <span class="lvl lvl-{{ entry.level|upper|replace({' ': '_'}) }}">
+                            {{ entry.level }}
+                        </span>
+                    </td>
+                    <td class="dt">
+                        {% if entry.datetime %}
+                            {{ entry.datetime|date('Y-m-d') }}<br>
+                            <span style="color:#94a3b8">{{ entry.datetime|date('H:i:s') }}</span>
+                        {% else %}
+                            <span style="color:#cbd5e1">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="msg">{{ entry.message }}</div>
+                        {% if entry.context.exception is defined %}
+                            <div class="msg-sub">{{ entry.context.exception }}</div>
+                        {% elseif entry.context.command is defined %}
+                            <div class="msg-sub">{{ entry.context.command }}</div>
+                        {% elseif entry.context.event is defined %}
+                            <div class="msg-sub">{{ entry.context.event }}</div>
+                        {% elseif entry.context.sql is defined %}
+                            <div class="msg-sub">{{ entry.context.sql|slice(0, 120) }}{% if entry.context.sql|length > 120 %}…{% endif %}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if entry.context|length > 0 or entry.extra|length > 0 %}
+                            {% set combined = entry.context|merge(entry.extra) %}
+                            <button class="ctx-toggle" onclick="toggleCtx(this)">
+                                +{{ combined|length }} field{{ combined|length == 1 ? '' : 's' }}
+                            </button>
+                            <div class="ctx-block">{{ combined|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_UNESCAPED_SLASHES')) }}</div>
+                        {% else %}
+                            <span style="color:#cbd5e1;font-size:12px">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        <span class="pag-info">
+            Showing {{ ((current_page - 1) * 50) + 1 }}–{{ min(current_page * 50, total_count) }} of {{ total_count }}
+        </span>
+
+        <a href="{{ path('log_viewer', {channel: channel, level: level, search: search, page: max(1, current_page - 1)}) }}"
+           class="pag-btn{{ current_page <= 1 ? ' disabled' : '' }}">← Prev</a>
+
+        {% for p in range(max(1, current_page - 2), min(total_pages, current_page + 2)) %}
+            <a href="{{ path('log_viewer', {channel: channel, level: level, search: search, page: p}) }}"
+               class="pag-btn{{ p == current_page ? ' current' : '' }}">{{ p }}</a>
+        {% endfor %}
+
+        <a href="{{ path('log_viewer', {channel: channel, level: level, search: search, page: min(total_pages, current_page + 1)}) }}"
+           class="pag-btn{{ current_page >= total_pages ? ' disabled' : '' }}">Next →</a>
+    </div>
+    {% endif %}
+
+    {% endif %} {# end file_exists #}
+
+</div>
+
+<script>
+function toggleCtx(btn) {
+    const block = btn.nextElementSibling;
+    block.classList.toggle('open');
+    btn.textContent = block.classList.contains('open')
+        ? btn.textContent.replace('+', '−')
+        : btn.textContent.replace('−', '+');
+}
+
+document.querySelector('.search-box input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') this.closest('form').submit();
+});
+</script>
+</body>
+</html>

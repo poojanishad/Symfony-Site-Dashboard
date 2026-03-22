@@ -1,0 +1,103 @@
+parameters:
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # FIX 1: DashboardController — two MessageBusInterface args need named wiring
+    # Symfony 7.4 cannot autowire two identical types with different roles.
+    # ══════════════════════════════════════════════════════════════════════════
+    App\Dashboard\Presentation\Controller\DashboardController:
+        arguments:
+            $commandBus: '@command.bus'
+            $queryBus:   '@query.bus'
+
+    App\Dashboard\Presentation\Controller\ApiController:
+        arguments:
+            $commandBus: '@command.bus'
+            $queryBus:   '@query.bus'
+
+    App\Dashboard\Presentation\Controller\LogViewerController:
+        arguments:
+            $kernel_logs_dir: '%kernel.logs_dir%'
+
+    App\Dashboard\Presentation\Controller\ApiLogController:
+        arguments:
+            $kernel_logs_dir: '%kernel.logs_dir%'
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # FIX 4: Stopwatch — register as explicit autowireable service.
+    # symfony/stopwatch is not auto-registered as a public service in prod.
+    # ══════════════════════════════════════════════════════════════════════════
+    Symfony\Component\Stopwatch\Stopwatch:
+        class: Symfony\Component\Stopwatch\Stopwatch
+        public: false
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # LOGGING — named Monolog channel injection
+    # ══════════════════════════════════════════════════════════════════════════
+    App\Shared\Infrastructure\Messenger\LoggingMiddleware:
+        arguments:
+            $logger: '@monolog.logger.application'
+
+    App\Shared\Infrastructure\Messenger\PerformanceMiddleware:
+        arguments:
+            $logger:    '@monolog.logger.performance'
+            $stopwatch: '@Symfony\Component\Stopwatch\Stopwatch'
+
+    App\Shared\Infrastructure\EventListener\DomainEventAuditLogger:
+        autoconfigure: false   # NOT a Messenger handler — called directly via ->log()
+        arguments:
+            $logger: '@monolog.logger.domain'
+
+    # FIX 6: Remove manual tag — autoconfigure already handles kernel.event_subscriber
+    App\Dashboard\Infrastructure\EventListener\RequestResponseLogSubscriber:
+        arguments:
+            $logger:    '@monolog.logger.dashboard'
+            $stopwatch: '@Symfony\Component\Stopwatch\Stopwatch'
+
+    App\Dashboard\Infrastructure\EventListener\AlertOnSiteErrorHandler:
+        arguments:
+            $logger: '@monolog.logger.domain'
+
+    App\Dashboard\Infrastructure\EventListener\MetricsOnDomainEventHandler:
+        arguments:
+            $logger: '@monolog.logger.domain'
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CACHING — named cache pool injection
+    # ══════════════════════════════════════════════════════════════════════════
+    App\Dashboard\Application\QueryHandler\GetDashboardQueryHandler:
+        arguments:
+            $cache:  '@dashboard.cache'
+            $logger: '@monolog.logger.application'
+
+    App\Dashboard\Infrastructure\Cache\DashboardCacheInvalidator:
+        arguments:
+            $cache:  '@dashboard.cache'
+            $logger: '@monolog.logger.application'
+
+    App\Dashboard\Presentation\Console\DashboardStatusCommand:
+        arguments:
+            $cache: '@dashboard.cache'
+
+    App\Dashboard\Presentation\Console\DashboardSeedCommand: ~
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # DOCTRINE SLOW-QUERY MIDDLEWARE
+    # ══════════════════════════════════════════════════════════════════════════
+    App\Dashboard\Infrastructure\Doctrine\Middleware\SlowQueryLoggerMiddleware:
+        arguments:
+            $logger: '@monolog.logger.performance'
+        tags:
+            - { name: doctrine.middleware }

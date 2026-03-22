@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Dashboard</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg:#ffffff; --surface:#f8fafc; --border:#e2e8f0; --text:#1e293b;
+            --muted:#64748b; --active:#16a34a; --pending:#d97706; --error:#dc2626;
+            --accent:#4f46e5; --accent-h:#4338ca;
+        }
+        body { background:#f1f5f9; color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; font-size:14px; line-height:1.6; }
+        .wrap { max-width:1280px; margin:0 auto; padding:0 24px; }
+        header { background:#fff; border-bottom:1px solid var(--border); padding:16px 0; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+        .header-inner { display:flex; align-items:center; justify-content:space-between; }
+        .logo { font-size:18px; font-weight:700; color:var(--text); }
+        .logo span { color:var(--accent); }
+        .flashes { padding:12px 0; }
+        .flash { padding:10px 16px; border-radius:8px; margin-bottom:8px; font-size:13px; }
+        .flash-success { background:#14532d; border:1px solid #22c55e; color:#86efac; }
+        .flash-error   { background:#450a0a; border:1px solid #ef4444; color:#fca5a5; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; padding:24px 0 16px; }
+        .stat { background:#fff; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+        .stat-val { font-size:26px; font-weight:700; line-height:1; }
+        .stat-lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:.5px; }
+        .c-active{color:#22c55e} .c-error{color:#ef4444} .c-pending{color:#f59e0b}
+        .c-accent{color:#6366f1} .c-muted{color:#64748b}
+        .health-bar-wrap { background:#e2e8f0; border-radius:4px; height:5px; margin-top:6px; }
+        .health-bar { height:100%; border-radius:4px; background:#16a34a; }
+        .toolbar { display:flex; gap:8px; align-items:center; padding:8px 0 16px; flex-wrap:wrap; }
+        .filter-btn { padding:5px 14px; border-radius:20px; border:1px solid var(--border); background:#fff; color:var(--muted); cursor:pointer; font-size:12px; text-decoration:none; transition:all .15s; }
+        .filter-btn:hover,.filter-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+        .btn { padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-size:13px; font-weight:500; transition:all .15s; text-decoration:none; display:inline-block; }
+        .btn-primary { background:var(--accent); color:#fff; }
+        .btn-primary:hover { background:var(--accent-h); }
+        .btn-danger { background:#fff; color:var(--error); border:1px solid #fca5a5; padding:4px 10px; font-size:12px; border-radius:6px; }
+        .btn-danger:hover { background:#fef2f2; }
+        .btn-edit { background:#fff; color:var(--accent); border:1px solid var(--border); padding:4px 10px; font-size:12px; border-radius:6px; }
+        .btn-edit:hover { border-color:var(--accent); background:#eef2ff; }
+        .ml-auto { margin-left:auto; }
+        .table-wrap { background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+        table { width:100%; border-collapse:collapse; }
+        th { text-align:left; padding:12px 16px; font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); border-bottom:1px solid var(--border); font-weight:600; background:#f8fafc; }
+        td { padding:12px 16px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+        tr:last-child td { border-bottom:none; }
+        tr:hover td { background:#f8fafc; }
+        .empty-row td { text-align:center; color:var(--muted); padding:48px; }
+        .badge { display:inline-block; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; text-transform:uppercase; }
+        .badge-active{background:#dcfce7;color:#166534} .badge-inactive{background:#f1f5f9;color:#475569}
+        .badge-pending{background:#fef9c3;color:#854d0e} .badge-error{background:#fee2e2;color:#991b1b}
+        .rt-good{color:#16a34a} .rt-slow{color:#d97706} .rt-bad{color:#dc2626} .rt-none{color:#94a3b8;font-style:italic}
+        .url-cell { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:12px; }
+        .actions-cell { display:flex; gap:6px; align-items:center; }
+        /* Pagination */
+        .pagination { display:flex; align-items:center; gap:6px; padding:0 0 24px; flex-wrap:wrap; }
+        .pag-info { font-size:12px; color:var(--muted); margin-right:8px; }
+        .pag-btn { padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:#fff; color:var(--muted); text-decoration:none; font-size:12px; transition:all .15s; }
+        .pag-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .pag-btn.current { background:var(--accent); border-color:var(--accent); color:#fff; }
+        .pag-btn.disabled { opacity:.35; pointer-events:none; }
+        /* Modal */
+        .modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:100; align-items:center; justify-content:center; }
+        .modal-backdrop.open { display:flex; }
+        .modal { background:#fff; border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:480px; box-shadow:0 20px 60px rgba(0,0,0,.15); }
+        .modal h2 { font-size:16px; font-weight:600; margin-bottom:20px; }
+        .form-group { margin-bottom:14px; }
+        .form-group label { display:block; font-size:12px; color:var(--muted); margin-bottom:5px; }
+        .form-group input,.form-group select,.form-group textarea { width:100%; background:#fff; border:1px solid var(--border); border-radius:8px; color:var(--text); padding:9px 12px; font-size:13px; outline:none; }
+        .form-group input:focus,.form-group select:focus,.form-group textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(79,70,229,.1); }
+        .form-group textarea { resize:vertical; min-height:70px; }
+        .form-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+        .btn-cancel { background:#fff; border:1px solid var(--border); color:var(--muted); padding:8px 16px; border-radius:8px; cursor:pointer; font-size:13px; }
+    </style>
+</head>
+<body>
+<header>
+    <div class="wrap header-inner">
+        <div class="logo">Site<span>Dashboard</span></div>
+        <div style="display:flex;gap:16px;align-items:center">
+            <a href="{{ path('dashboard_index') }}" style="font-size:13px;color:var(--accent);text-decoration:none;font-weight:500">Dashboard</a>
+            <a href="{{ path('log_viewer') }}" style="font-size:13px;color:var(--muted);text-decoration:none">Logs</a>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">DDD · CQRS · Symfony 7.4 LTS</div>
+    </div>
+</header>
+
+<div class="wrap">
+
+    {% for type, messages in app.flashes(['success','error']) %}
+        <div class="flashes">
+            {% for msg in messages %}
+                <div class="flash flash-{{ type }}">{{ msg }}</div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-val c-accent" data-indian="{{ statistics.total ?? 0 }}">{{ statistics.total ?? 0 }}</div>
+            <div class="stat-lbl">Total Sites</div>
+        </div>
+        <div class="stat">
+            <div class="stat-val c-active" data-indian="{{ statistics.active ?? 0 }}">{{ statistics.active ?? 0 }}</div>
+            <div class="stat-lbl">Active</div>
+        </div>
+        <div class="stat">
+            <div class="stat-val c-error" data-indian="{{ statistics.error ?? 0 }}">{{ statistics.error ?? 0 }}</div>
+            <div class="stat-lbl">Error</div>
+        </div>
+        <div class="stat">
+            <div class="stat-val c-pending" data-indian="{{ statistics.pending ?? 0 }}">{{ statistics.pending ?? 0 }}</div>
+            <div class="stat-lbl">Pending</div>
+        </div>
+        <div class="stat">
+            <div class="stat-val c-muted" data-indian="{{ statistics.slow ?? 0 }}">{{ statistics.slow ?? 0 }}</div>
+            <div class="stat-lbl">Slow (&gt;500ms)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-val" style="font-size:18px">{{ statistics.avg_response_ms ?? 0 }}ms</div>
+            <div class="stat-lbl">Avg Response</div>
+            {% if statistics.health_score is defined %}
+                <div class="health-bar-wrap">
+                    <div class="health-bar" style="width:{{ statistics.health_score }}%;{% if statistics.health_score < 50 %}background:var(--error){% elseif statistics.health_score < 75 %}background:var(--pending){% endif %}"></div>
+                </div>
+                <div style="font-size:11px;color:var(--muted);margin-top:3px">{{ statistics.health_score }}% healthy</div>
+            {% endif %}
+        </div>
+        {% if paginated %}
+        <div class="stat">
+            <div class="stat-val c-accent" data-indian="{{ paginated.totalCount }}">{{ paginated.totalCount }}</div>
+            <div class="stat-lbl">Total Records</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">Page {{ paginated.page }}/{{ paginated.totalPages() }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="toolbar">
+        <a href="{{ path('dashboard_index') }}" class="filter-btn{{ filter_status is null ? ' active' : '' }}">All</a>
+        {% for s in statuses %}
+            <a href="{{ path('dashboard_index', {status: s}) }}" class="filter-btn{{ filter_status == s ? ' active' : '' }}">{{ s|capitalize }}</a>
+        {% endfor %}
+        <div class="ml-auto">
+            <button class="btn btn-primary" onclick="openModal('create-modal')">+ Add Site</button>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th><th>URL</th><th>Status</th>
+                    <th>Response</th><th>Updated</th><th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% set records = paginated ? paginated.items : [] %}
+            {% if records|length == 0 %}
+                <tr class="empty-row"><td colspan="6">No site records found.</td></tr>
+            {% else %}
+                {% for record in records %}
+                <tr>
+                    <td><strong>{{ record.name }}</strong></td>
+                    <td class="url-cell" title="{{ record.url }}">{{ record.url }}</td>
+                    <td><span class="badge badge-{{ record.status }}">{{ record.status }}</span></td>
+                    <td>
+                        {% if record.responseTimeMs == 0 %}
+                            <span class="rt-none">—</span>
+                        {% elseif record.responseTimeMs <= 200 %}
+                            <span class="rt-good">{{ record.responseTimeMs }}ms</span>
+                        {% elseif record.responseTimeMs <= 500 %}
+                            <span class="rt-slow">{{ record.responseTimeMs }}ms</span>
+                        {% else %}
+                            <span class="rt-bad">{{ record.responseTimeMs }}ms</span>
+                        {% endif %}
+                    </td>
+                    <td style="color:var(--muted);font-size:12px">{{ record.updatedAt|date('Y-m-d H:i') }}</td>
+                    <td>
+                        <div class="actions-cell">
+                            <button class="btn btn-edit"
+                                onclick="openEditModal('{{ record.id }}','{{ record.name|e('html_attr') }}','{{ record.url|e('html_attr') }}','{{ record.status }}','{{ (record.notes ?? '')|e('html_attr') }}')">
+                                Edit
+                            </button>
+                            <form method="post" action="{{ path('dashboard_delete', {id: record.id}) }}"
+                                  onsubmit="return confirm('Delete {{ record.name|e('html_attr') }}?')">
+                                <button type="submit" class="btn btn-danger">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if paginated and paginated.totalPages() > 1 %}
+    <div class="pagination">
+        <span class="pag-info">
+            Showing {{ ((paginated.page - 1) * paginated.pageSize) + 1 }}–{{ min(paginated.page * paginated.pageSize, paginated.totalCount) }}
+            of {{ paginated.totalCount }} records
+        </span>
+
+        <a href="{{ path('dashboard_index', {page: paginated.previousPage(), status: filter_status}) }}"
+           class="pag-btn{{ not paginated.hasPreviousPage() ? ' disabled' : '' }}">← Prev</a>
+
+        {% for p in paginated.pageRange() %}
+            <a href="{{ path('dashboard_index', {page: p, status: filter_status}) }}"
+               class="pag-btn{{ p == paginated.page ? ' current' : '' }}">{{ p }}</a>
+        {% endfor %}
+
+        <a href="{{ path('dashboard_index', {page: paginated.nextPage(), status: filter_status}) }}"
+           class="pag-btn{{ not paginated.hasNextPage() ? ' disabled' : '' }}">Next →</a>
+    </div>
+    {% endif %}
+
+</div>
+
+<div class="modal-backdrop" id="create-modal">
+    <div class="modal">
+        <h2>Add Site Record</h2>
+        <form method="post" action="{{ path('dashboard_create') }}">
+            <div class="form-group"><label>Name</label><input type="text" name="name" placeholder="My Website" required></div>
+            <div class="form-group"><label>URL</label><input type="url" name="url" placeholder="https://example.com" required></div>
+            <div class="form-group"><label>Status</label>
+                <select name="status">{% for s in statuses %}<option value="{{ s }}">{{ s|capitalize }}</option>{% endfor %}</select>
+            </div>
+            <div class="form-group"><label>Notes (optional)</label><textarea name="notes" placeholder="Any notes..."></textarea></div>
+            <div class="form-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal('create-modal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="edit-modal">
+    <div class="modal">
+        <h2>Edit Site Record</h2>
+        <form method="post" id="edit-form" action="">
+            <div class="form-group"><label>Name</label><input type="text" name="name" id="edit-name" required></div>
+            <div class="form-group"><label>URL</label><input type="url" name="url" id="edit-url" required></div>
+            <div class="form-group"><label>Status</label>
+                <select name="status" id="edit-status">{% for s in statuses %}<option value="{{ s }}">{{ s|capitalize }}</option>{% endfor %}</select>
+            </div>
+            <div class="form-group"><label>Notes (optional)</label><textarea name="notes" id="edit-notes"></textarea></div>
+            <div class="form-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal('edit-modal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openEditModal(id, name, url, status, notes) {
+    document.getElementById('edit-form').action = '/site-records/' + id;
+    document.getElementById('edit-name').value   = name;
+    document.getElementById('edit-url').value    = url;
+    document.getElementById('edit-status').value = status;
+    document.getElementById('edit-notes').value  = notes;
+    openModal('edit-modal');
+}
+document.querySelectorAll('.modal-backdrop').forEach(el =>
+    el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); })
+);
+</script>
+
+<script>
+function indianFormat(n) {
+    n = parseInt(n) || 0;
+    if (n < 1000) return n.toString();
+    let s = n.toString();
+    let last3 = s.slice(-3);
+    let rest = s.slice(0, -3);
+    let result = last3;
+    while (rest.length > 2) {
+        result = rest.slice(-2) + ',' + result;
+        rest = rest.slice(0, -2);
+    }
+    if (rest.length > 0) result = rest + ',' + result;
+    return result;
+}
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-indian]').forEach(function(el) {
+        el.textContent = indianFormat(el.dataset.indian);
+    });
+});
+</script>
+</body>
+</html>

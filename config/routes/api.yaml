@@ -1,0 +1,29 @@
+api_site_records_list:
+    path:       /api/site-records
+    controller: App\Dashboard\Presentation\Controller\ApiController::list
+    methods:    [GET]
+
+api_site_records_create:
+    path:       /api/site-records
+    controller: App\Dashboard\Presentation\Controller\ApiController::create
+    methods:    [POST]
+
+api_site_records_update:
+    path:       /api/site-records/{id}
+    controller: App\Dashboard\Presentation\Controller\ApiController::update
+    methods:    [PUT]
+
+api_site_records_delete:
+    path:       /api/site-records/{id}
+    controller: App\Dashboard\Presentation\Controller\ApiController::delete
+    methods:    [DELETE]
+
+api_statuses:
+    path:       /api/statuses
+    controller: App\Dashboard\Presentation\Controller\ApiController::statuses
+    methods:    [GET]
+
+api_logs:
+    path:       /api/logs
+    controller: App\Dashboard\Presentation\Controller\ApiLogController::index
+    methods:    [GET]
