@@ -1,15 +1,6 @@
-# Symfony Dashboard — All 6 Architecture Patterns
+# Symfony Dashboard — Backend
 
-A complete **Domain-Driven Design** Symfony 7.44 LTS application with all 6 patterns fully implemented:
-
-| Pattern | Status | Implementation |
-|---|---|---|
-| DDD | ✅ Full | 4-layer architecture, Entities, VOs, Specs, Domain Services |
-| CQRS | ✅ Full | Separate command/query buses, dedicated Read Model DTOs, DBAL read repo |
-| Event-Driven | ✅ Full | 3 reactive event handlers on event.bus (alert, cache, metrics) |
-| Async Processing | ✅ Full | Domain events routed to `async` transport, doctrine queue, retry strategy |
-| Caching Layer | ✅ Full | PSR-6 pool (filesystem dev / Redis prod), TTL=60s, event-driven invalidation |
-| Optimised Read Models | ✅ Full | DBAL flat projections, `SiteRecordReadModel` + `DashboardSummaryReadModel` DTOs |
+REST API backend built with **Symfony 7 + PHP 8.2** following DDD, CQRS, and Event-Driven architecture. Serves 100k+ site records with caching and async processing.
 
 ---
 
@@ -17,146 +8,204 @@ A complete **Domain-Driven Design** Symfony 7.44 LTS application with all 6 patt
 
 - PHP 8.2+
 - Composer
-- SQLite (`php-sqlite3` or `pdo_sqlite`)
-- Optional for prod: Redis, RabbitMQ/Redis for async transport
+- MySQL (XAMPP recommended)
+- Symfony CLI — https://symfony.com/download
 
 ---
 
-## Quick Start
+## Setup
+
+### 1. Install CORS bundle
 
 ```bash
-# 1. Install dependencies
-composer install
+composer require nelmio/cors-bundle
+```
 
-# 2. Create database + run migrations
+### 2. Install all dependencies
+
+```bash
+composer install
+```
+
+### 3. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```dotenv
+APP_ENV=dev
+APP_SECRET=your_secret_here
+DATABASE_URL="mysql://root:@127.0.0.1:3306/symfony_dashboard_2?charset=utf8mb4"
+MESSENGER_TRANSPORT_DSN=doctrine://default?auto_setup=true
+CORS_ALLOW_ORIGIN='^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$'
+```
+
+> Generate APP_SECRET:
+> ```bash
+> php -r "echo bin2hex(random_bytes(16));"
+> ```
+
+### 4. Create database
+
+```bash
+php bin/console doctrine:database:create
+```
+
+### 5. Run migrations
+
+```bash
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+### 6. Seed 100,000+ records
+
+```bash
+php bin/console dashboard:seed --count=100000
+```
+
+> This may take 1-2 minutes to insert 100k records.
+
+---
+
+## Start Server
+
+```bash
+symfony server:start
+```
+
+Or without Symfony CLI:
+
+```bash
+php -S 127.0.0.1:8000 -t public/
+```
+
+API available at: **http://127.0.0.1:8000**
+
+---
+
+## Full Setup — All Steps at Once
+
+```bash
+composer require nelmio/cors-bundle
+composer install
 php bin/console doctrine:database:create
 php bin/console doctrine:migrations:migrate --no-interaction
-
-# 3. Start the dev server
+php bin/console dashboard:seed --count=100000
 symfony server:start
-# or: php -S localhost:8000 -t public/
-
-# 4. (Optional) Start async worker for domain events
-php bin/console messenger:consume async --limit=50 -vv
-```
-
-Open http://localhost:8000
-
----
-
-## Architecture Overview
-
-```
-src/
-├── Dashboard/
-│   ├── Domain/                          ← Pure PHP — zero Symfony deps
-│   │   ├── Entity/SiteRecord.php        ← Aggregate Root
-│   │   ├── ValueObject/SiteUrl.php      ← Validated URL
-│   │   ├── ValueObject/SiteStatus.php   ← Enum-like status
-│   │   ├── Event/SiteRecordCreated.php  ← Domain event
-│   │   ├── Event/SiteRecordUpdated.php
-│   │   ├── Event/SiteRecordDeleted.php
-│   │   ├── Repository/SiteRecordRepositoryInterface.php
-│   │   ├── Specification/SiteRecordSpecifications.php
-│   │   └── Service/DashboardStatisticsService.php
-│   │
-│   ├── Application/                     ← Use cases — orchestrates domain
-│   │   ├── Command/Create|Update|DeleteSiteRecordCommand.php
-│   │   ├── Handler/Create|Update|DeleteSiteRecordHandler.php   ← write side
-│   │   ├── Query/GetDashboardQuery.php
-│   │   ├── Query/ReadModel/
-│   │   │   ├── SiteRecordReadModel.php       ← flat DTO (CQRS read projection)
-│   │   │   └── DashboardSummaryReadModel.php ← statistics DTO
-│   │   └── QueryHandler/GetDashboardQueryHandler.php  ← read side + cache
-│   │
-│   ├── Infrastructure/                  ← Symfony / Doctrine implementations
-│   │   ├── Repository/
-│   │   │   ├── DoctrineSiteRecordRepository.php  ← ORM write repo
-│   │   │   └── DashboardReadRepository.php        ← DBAL read projections
-│   │   ├── Cache/
-│   │   │   └── DashboardCacheInvalidator.php      ← PSR-6 invalidation
-│   │   ├── Doctrine/Middleware/
-│   │   │   └── SlowQueryLogger*.php               ← DBAL slow query logging
-│   │   └── EventListener/
-│   │       ├── AlertOnSiteErrorHandler.php        ← event.bus async handler
-│   │       ├── InvalidateCacheOnSiteRecordChanged.php
-│   │       ├── MetricsOnDomainEventHandler.php
-│   │       └── RequestResponseLogSubscriber.php   ← HTTP logging
-│   │
-│   └── Presentation/
-│       └── Controller/DashboardController.php
-│
-└── Shared/
-    └── Infrastructure/
-        ├── Messenger/
-        │   ├── LoggingMiddleware.php       ← application channel
-        │   └── PerformanceMiddleware.php   ← performance channel + Stopwatch
-        └── EventListener/
-            └── DomainEventAuditLogger.php  ← domain channel
 ```
 
 ---
 
-## Pattern Details
+## API Endpoints
 
-### CQRS
-- `command.bus` → `CreateSiteRecordHandler` → writes via ORM `DoctrineSiteRecordRepository`
-- `query.bus`   → `GetDashboardQueryHandler` → reads via DBAL `DashboardReadRepository` + cache
-- Query handler returns `SiteRecordReadModel[]` (flat DTO) — **never** domain `SiteRecord` entities
-
-### Event-Driven Architecture
-Three reactive handlers on `event.bus`, all async:
-
-| Handler | Trigger | Action |
-|---|---|---|
-| `AlertOnSiteErrorHandler` | `SiteRecordUpdated` (status=error) | Log critical / send alert |
-| `InvalidateCacheOnSiteRecordChanged` | Any site event | Invalidate read cache |
-| `MetricsOnDomainEventHandler` | Any site event | Emit structured metric log |
-
-### Async Processing
-```bash
-# Start the worker — processes domain events from the queue
-php bin/console messenger:consume async --limit=100 --time-limit=3600 -vv
-
-# Retry failed messages
-php bin/console messenger:failed:retry
-
-# Inspect failed queue
-php bin/console messenger:failed:show
+### Get site records (paginated)
+```
+GET /api/site-records
 ```
 
-### Caching Layer
-- Pool: `dashboard.cache` (filesystem in dev, Redis in prod)
-- TTL: 60 seconds
-- Keys: `dashboard.records.all`, `dashboard.records.active`, etc.
-- Invalidation: triggered by `DashboardCacheInvalidator` after every write command
-  AND by `InvalidateCacheOnSiteRecordChanged` async event handler
+| Param    | Type   | Default    | Example               |
+|----------|--------|------------|-----------------------|
+| page     | int    | 1          | ?page=2               |
+| perPage  | int    | 50         | ?perPage=25           |
+| status   | string | (all)      | ?status=active        |
+| country  | string | (all)      | ?country=IN           |
+| category | string | (all)      | ?category=ecommerce   |
+| search   | string | (empty)    | ?search=amazon        |
+| sortBy   | string | created_at | ?sortBy=page_views    |
+| sortDir  | string | DESC       | ?sortDir=ASC          |
 
-### Optimised Read Models
-- `DashboardReadRepository` uses raw DBAL `createQueryBuilder()` — zero ORM entity hydration
-- Returns `SiteRecordReadModel` (flat `readonly` DTO)
-- `DashboardSummaryReadModel` computes statistics from DTOs without touching the domain layer
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "url": "https://example.com",
+      "name": "Example Site",
+      "status": "active",
+      "page_views": 12000,
+      "unique_visitors": 4500,
+      "bounce_rate": 42.5,
+      "avg_session_duration": 185.0,
+      "country": "IN",
+      "category": "ecommerce",
+      "created_at": "2024-01-01 00:00:00",
+      "updated_at": "2024-01-01 00:00:00"
+    }
+  ],
+  "meta": {
+    "total": 100000,
+    "page": 1,
+    "per_page": 50,
+    "total_pages": 2000
+  }
+}
+```
 
 ---
 
-## Log Files
+## Architecture
 
-| File | Channel | Content |
-|---|---|---|
-| `dev.log` | main | Errors only (fingers_crossed) |
-| `dashboard.log` | dashboard | HTTP req/res, timing (JSON) |
-| `dashboard_performance.log` | performance | Handler timings, slow SQL (JSON) |
-| `domain.log` | domain | Domain events, alerts, metrics (JSON) |
-| `application.log` | application | Command/query lifecycle (JSON) |
+```
+src/Dashboard/
+├── Domain/
+│   ├── Entity/SiteRecord.php
+│   ├── ValueObject/SiteUrl.php
+│   ├── ValueObject/SiteStatus.php
+│   ├── Event/SiteRecordCreated.php
+│   ├── Event/SiteRecordUpdated.php
+│   ├── Specification/
+│   └── Service/DashboardStatisticsService.php
+├── Application/
+│   ├── Command/
+│   ├── Handler/
+│   ├── Query/GetDashboardQuery.php
+│   ├── Query/ReadModel/SiteRecordReadModel.php
+│   └── QueryHandler/GetDashboardQueryHandler.php
+├── Infrastructure/
+│   ├── Repository/DoctrineSiteRecordRepository.php
+│   ├── Repository/DashboardReadRepository.php
+│   ├── Cache/DashboardCacheInvalidator.php
+│   └── EventListener/
+└── Presentation/
+    └── Controller/DashboardController.php
+```
 
----
+| Pattern          | Implementation                                 |
+|------------------|------------------------------------------------|
+| DDD              | Entities, Value Objects, Domain Events         |
+| CQRS             | command.bus write / query.bus read             |
+| Event-Driven     | 3 async handlers on event.bus                  |
+| Async Processing | Doctrine Messenger queue                       |
+| Caching          | PSR-6 pool, TTL 60s, event-driven invalidation |
+| Optimised Reads  | Raw DBAL, flat DTOs — no ORM hydration         |
 
-## Running Tests
+
+## Run Unit Tests
 
 ```bash
 php bin/phpunit
 ```
 
-Test coverage includes: Entity, Value Objects, Specifications, Statistics Service,
-Read Models, Cache Invalidator, Logging Middleware, Performance Middleware,
-and Event-driven alert handler.
+---
+
+## Log Files
+
+| File                                | Content                      |
+|-------------------------------------|------------------------------|
+| var/log/dev.log                     | General errors               |
+| var/log/dashboard.log               | HTTP requests & timing       |
+| var/log/domain.log                  | Domain events & alerts       |
+| var/log/application.log             | Command/query lifecycle      |
+| var/log/dashboard_performance.log   | Slow queries & handler times |
+
+---
+
+## Clear Cache
+php bin/console cache:clear
+```bash
+php bin/console cache:clear
+```
